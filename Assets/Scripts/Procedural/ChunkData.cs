@@ -19,7 +19,7 @@ public class ChunkData
     public BlockType GetBlock(int x, int y, int z)
     {
         if (x < 0 || y < 0 || z < 0 || x >= blocks.GetLength(0) || y >= blocks.GetLength(1) || z >= blocks.GetLength(2))
-            return BlockType.Air;
+            return BlockType.air;
 
         return blocks[x, y, z];
     }

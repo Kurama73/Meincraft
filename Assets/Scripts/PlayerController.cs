@@ -119,7 +119,7 @@ public class PlayerController : MonoBehaviour
             if (chunk != null)
             {
                 Vector3 hitPosition = hit.point - hit.normal * 0.5f; // Ajustez la position pour cibler le centre du bloc
-                chunk.SetBlock(hitPosition, BlockType.Air);
+                chunk.SetBlock(hitPosition, BlockType.air);
             }
         }
     }

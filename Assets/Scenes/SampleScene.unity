@@ -620,6 +620,7 @@ MonoBehaviour:
   updateDistance: 5
   blockGenerator: {fileID: 697123294}
   player: {fileID: 430394551}
+  proceduralWorldManager: {fileID: 1538437465}
   chunkMaterial: {fileID: 2100000, guid: dd15bda05946beb43847ed8369bdd15d, type: 2}
 --- !u!4 &727646434
 Transform:

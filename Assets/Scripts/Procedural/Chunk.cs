@@ -52,7 +52,7 @@ public class Chunk : MonoBehaviour
                 for (int z = 0; z < size; z++)
                 {
                     BlockType block = data.GetBlock(x, y, z);
-                    if (block == BlockType.Air) continue;
+                    if (block == BlockType.air) continue;
 
                     foreach (var dir in VoxelData.directions)
                     {
@@ -60,7 +60,7 @@ public class Chunk : MonoBehaviour
                         int ny = y + dir.y;
                         int nz = z + dir.z;
 
-                        if (data.GetBlock(nx, ny, nz) == BlockType.Air)
+                        if (data.GetBlock(nx, ny, nz) == BlockType.air)
                             meshData.AddFace(block, x, y, z, dir);
                     }
                 }

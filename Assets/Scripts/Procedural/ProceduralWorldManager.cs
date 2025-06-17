@@ -18,24 +18,16 @@ public class ProceduralWorldManager : MonoBehaviour
 
     void Start()
     {
-        // Initialiser le seed pour la génération procédurale
         Random.InitState(worldSeed);
-
-        // Démarrer la routine d'optimisation
         StartCoroutine(OptimizationLoop());
-
-        // Assurez-vous que les chunks initiaux sont générés avant de positionner le joueur
         StartCoroutine(GenerateInitialChunksAndSpawnPlayer());
     }
 
     IEnumerator GenerateInitialChunksAndSpawnPlayer()
     {
-        yield return new WaitForSeconds(1f); // Attendre que les chunks initiaux soient générés
-
-        // Positionner le joueur
+        yield return new WaitForSeconds(1f);
         player.position = GetSpawnPosition();
     }
-
 
     IEnumerator OptimizationLoop()
     {
@@ -43,32 +35,63 @@ public class ProceduralWorldManager : MonoBehaviour
         {
             yield return new WaitForSeconds(updateInterval);
 
-            // Nettoyer la mémoire si nécessaire
-            if (Time.frameCount % 300 == 0) // Toutes les 5 secondes à 60 FPS
+            if (Time.frameCount % 300 == 0)
             {
                 System.GC.Collect();
             }
         }
     }
 
-    public float GetHeightAtPosition(float x, float z)
+    public Biome DetermineBiome(float x, float z)
     {
-        float noiseValue = Mathf.PerlinNoise(x * noiseScale, z * noiseScale);
-        return noiseValue * maxHeight;
+        float biomeNoise = Mathf.PerlinNoise(x * 0.01f, z * 0.01f); // Utilisez une échelle plus petite pour des biomes plus grands
+
+        if (biomeNoise < 0.2f)
+        {
+            return new Biome(BiomeType.Ocean, -5, 2, Color.blue);
+        }
+        else if (biomeNoise < 0.3f)
+        {
+            return new Biome(BiomeType.Desert, 5, 3, Color.yellow);
+        }
+        else if (biomeNoise < 0.5f)
+        {
+            return new Biome(BiomeType.Plains, 0, 5, Color.green);
+        }
+        else if (biomeNoise < 0.7f)
+        {
+            return new Biome(BiomeType.Forest, 0, 10, Color.green);
+        }
+        else
+        {
+            return new Biome(BiomeType.Mountain, 10, 20, Color.gray);
+        }
     }
+
+
+
+    public float GetHeightAtPosition(float x, float z, Biome biome)
+    {
+        float noiseValue1 = Mathf.PerlinNoise(x * 0.05f, z * 0.05f);
+        float noiseValue2 = Mathf.PerlinNoise(x * 0.1f, z * 0.1f) * 0.5f;
+        float noiseValue3 = Mathf.PerlinNoise(x * 0.2f, z * 0.2f) * 0.25f;
+
+        float noiseValue = (noiseValue1 + noiseValue2 + noiseValue3) / 2.75f; // Normaliser la somme des bruits
+        return biome.baseHeight + noiseValue * biome.heightVariation;
+    }
+
+
 
     public Vector3 GetSpawnPosition()
     {
         Vector3 spawnPos = Vector3.zero;
-        spawnPos.y = GetHeightAtPosition(0, 0) + 3f;
+        spawnPos.y = GetHeightAtPosition(0, 0, new Biome(BiomeType.Plains, 0, 10, Color.green)) + 3f;
 
-        // Assurez-vous que la hauteur est valide
         if (spawnPos.y <= 0)
         {
-            spawnPos.y = 3f; // Hauteur de secours si la hauteur du terrain est invalide
+            spawnPos.y = 3f;
         }
 
         return spawnPos;
     }
-
 }

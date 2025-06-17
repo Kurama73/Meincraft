@@ -1,9 +1,10 @@
 ﻿public enum BlockType
 {
-    Air,
-    Grass,
-    Dirt,
-    Stone,
-    Sand,
-    // Ajoute d'autres types au besoin
+    air,
+    grass,
+    dirt,
+    stone,
+    sand,
+    spruce_log,
+    spruce_leaves
 }

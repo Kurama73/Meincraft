@@ -14,6 +14,9 @@ public class ChunkManager : MonoBehaviour
     [Header("Player")]
     public Transform player;
 
+    [Header("References")]
+    public ProceduralWorldManager proceduralWorldManager;
+
     private Dictionary<Vector2Int, Chunk> loadedChunks = new Dictionary<Vector2Int, Chunk>();
     private Vector2Int lastPlayerChunk = Vector2Int.zero;
     private Camera playerCamera;
@@ -32,14 +35,16 @@ public class ChunkManager : MonoBehaviour
     {
         Vector2Int currentPlayerChunk = GetChunkCoordFromWorldPos(player.position);
 
-        // Vérifier si le joueur a changé de chunk
+        // Log du biome actuel à la position du joueur
+        Biome currentBiome = proceduralWorldManager.DetermineBiome(player.position.x, player.position.z);
+        Debug.Log($"Biome: {currentBiome.type}");
+
         if (Vector2Int.Distance(currentPlayerChunk, lastPlayerChunk) > updateDistance)
         {
             UpdateChunks();
             lastPlayerChunk = currentPlayerChunk;
         }
 
-        // Frustum culling pour les chunks visibles
         UpdateChunkVisibility();
     }
 
@@ -61,7 +66,6 @@ public class ChunkManager : MonoBehaviour
     {
         Vector2Int playerChunk = GetChunkCoordFromWorldPos(player.position);
 
-        // Supprimer les chunks trop éloignés
         List<Vector2Int> chunksToRemove = new List<Vector2Int>();
         foreach (var chunk in loadedChunks)
         {
@@ -76,7 +80,6 @@ public class ChunkManager : MonoBehaviour
             DestroyChunk(coord);
         }
 
-        // Créer de nouveaux chunks
         for (int x = -viewDistance; x <= viewDistance; x++)
         {
             for (int z = -viewDistance; z <= viewDistance; z++)
@@ -96,7 +99,6 @@ public class ChunkManager : MonoBehaviour
         {
             if (chunk != null && chunk.gameObject != null)
             {
-                // Vérifier si le chunk est dans le champ de vision
                 Bounds chunkBounds = new Bounds(
                     chunk.gameObject.transform.position + Vector3.one * chunkSize * 0.5f,
                     Vector3.one * chunkSize
@@ -119,33 +121,45 @@ public class ChunkManager : MonoBehaviour
         GameObject chunkObject = new GameObject($"Chunk_{coord.x}_{coord.y}");
         chunkObject.transform.position = new Vector3(coord.x * chunkSize, 0, coord.y * chunkSize);
 
-        // Affecte la couche
         int chunkLayer = LayerMask.NameToLayer("Chunk");
         if (chunkLayer == -1)
         {
             Debug.LogWarning("Layer 'Chunk' is not defined. Using default layer.");
-            chunkLayer = 0; // Couche par défaut
+            chunkLayer = 0;
         }
         chunkObject.layer = chunkLayer;
 
-        // Ajoute les composants nécessaires
         var meshFilter = chunkObject.AddComponent<MeshFilter>();
         var meshRenderer = chunkObject.AddComponent<MeshRenderer>();
         var meshCollider = chunkObject.AddComponent<MeshCollider>();
 
-        // Applique le matériel de l’atlas
         meshRenderer.material = chunkMaterial;
 
-        // Ajoute le script Chunk et initialise
         Chunk newChunk = chunkObject.AddComponent<Chunk>();
+        Biome biome = proceduralWorldManager.DetermineBiome(coord.x * chunkSize, coord.y * chunkSize);
+
         newChunk.Initialize(coord, chunkSize, (x, y, z) => {
-            float noise = Mathf.PerlinNoise((coord.x * chunkSize + x) * 0.05f, (coord.y * chunkSize + z) * 0.05f);
-            int height = Mathf.FloorToInt(noise * 10f);
-            return y <= height ? BlockType.Grass : BlockType.Air;
+            int height = Mathf.FloorToInt(proceduralWorldManager.GetHeightAtPosition(x, z, biome));
+
+            if (y <= height)
+            {
+                if (y == height && biome.type == BiomeType.Forest && Random.value < 0.1f)
+                {
+                    new TreeGenerator().GenerateTree(new Vector3(x, y + 1, z));
+                }
+                return BlockType.grass;
+            }
+            else
+            {
+                return BlockType.air;
+            }
         });
 
         loadedChunks.Add(coord, newChunk);
     }
+
+
+
 
     void DestroyChunk(Vector2Int coord)
     {

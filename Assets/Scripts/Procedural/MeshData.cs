@@ -34,7 +34,7 @@ public class MeshData
 
         // Colors
         Color color = Color.white;
-        if (type == BlockType.Grass && direction == Vector3Int.up)
+        if (type == BlockType.grass && direction == Vector3Int.up)
             color = new Color(0.4f, 0.85f, 0.4f, 1f); // herbe top
 
         for (int i = 0; i < 4; i++)
@@ -59,7 +59,7 @@ public class MeshData
     {
         string name = "dirt.png";
 
-        if (type == BlockType.Grass)
+        if (type == BlockType.grass)
         {
             if (direction == Vector3Int.up)
                 name = "grass_block_top.png";
@@ -68,11 +68,11 @@ public class MeshData
             else
                 name = "grass_block_side.png";
         }
-        else if (type == BlockType.Stone)
+        else if (type == BlockType.stone)
             name = "stone.png";
-        else if (type == BlockType.Sand)
+        else if (type == BlockType.sand)
             name = "sand.png";
-        else if (type == BlockType.Dirt)
+        else if (type == BlockType.dirt)
             name = "dirt.png";
 
         return TextureAtlasManager.instance.GetUV(name);
