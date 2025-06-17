@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3e76eabd7e8ebcd469054c76bbe9ec8b, type: 3}
+  m_Name: BiomeSettings
+  m_EditorClassIdentifier: 
+  biomes:
+  - biomeName: Plains
+    surfaceBlock: 1
+    undergroundBlock: 2
+    minTemperature: 0.3
+    maxTemperature: 0.8
+    minHumidity: 0.2
+    maxHumidity: 0.8
+    treeChance: 15
+    oreChance: 10
+  - biomeName: Desert
+    surfaceBlock: 4
+    undergroundBlock: 4
+    minTemperature: 0.7
+    maxTemperature: 1
+    minHumidity: 0
+    maxHumidity: 0.3
+    treeChance: 2
+    oreChance: 15
+  - biomeName: Tundra
+    surfaceBlock: 6
+    undergroundBlock: 2
+    minTemperature: 0
+    maxTemperature: 0.3
+    minHumidity: 0
+    maxHumidity: 1
+    treeChance: 5
+    oreChance: 20

@@ -1,0 +1,99 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e785e8ee09edda64680de1e11a7365eb, type: 3}
+  m_Name: BlockRegistry
+  m_EditorClassIdentifier: 
+  blocks:
+  - blockType: 0
+    topTexture: 
+    bottomTexture: 
+    sideTexture: 
+    isSolid: 0
+    isTransparent: 1
+  - blockType: 1
+    topTexture: grass_block_top.png
+    bottomTexture: dirt.png
+    sideTexture: grass_block_side.png
+    isSolid: 1
+    isTransparent: 0
+  - blockType: 2
+    topTexture: dirt.png
+    bottomTexture: dirt.png
+    sideTexture: dirt.png
+    isSolid: 1
+    isTransparent: 0
+  - blockType: 3
+    topTexture: stone.png
+    bottomTexture: stone.png
+    sideTexture: stone.png
+    isSolid: 1
+    isTransparent: 0
+  - blockType: 4
+    topTexture: sand.png
+    bottomTexture: sand.png
+    sideTexture: sand.png
+    isSolid: 1
+    isTransparent: 0
+  - blockType: 5
+    topTexture: water_still.png
+    bottomTexture: water_still.png
+    sideTexture: water_still.png
+    isSolid: 0
+    isTransparent: 1
+  - blockType: 6
+    topTexture: snow.png
+    bottomTexture: dirt.png
+    sideTexture: grass_block_snow.png
+    isSolid: 1
+    isTransparent: 0
+  - blockType: 7
+    topTexture: ice.png
+    bottomTexture: ice.png
+    sideTexture: ice.png
+    isSolid: 1
+    isTransparent: 0
+  - blockType: 8
+    topTexture: oak_log_top.png
+    bottomTexture: oak_log_top.png
+    sideTexture: oak_log.png
+    isSolid: 1
+    isTransparent: 0
+  - blockType: 9
+    topTexture: oak_leaves.png
+    bottomTexture: oak_leaves.png
+    sideTexture: oak_leaves.png
+    isSolid: 1
+    isTransparent: 0
+  - blockType: 10
+    topTexture: coal_ore.png
+    bottomTexture: coal_ore.png
+    sideTexture: coal_ore.png
+    isSolid: 1
+    isTransparent: 0
+  - blockType: 11
+    topTexture: iron_ore.png
+    bottomTexture: iron_ore.png
+    sideTexture: iron_ore.png
+    isSolid: 1
+    isTransparent: 0
+  - blockType: 12
+    topTexture: gold_ore.png
+    bottomTexture: gold_ore.png
+    sideTexture: gold_ore.png
+    isSolid: 1
+    isTransparent: 0
+  - blockType: 13
+    topTexture: diamond_ore.png
+    bottomTexture: diamond_ore.png
+    sideTexture: diamond_ore.png
+    isSolid: 1
+    isTransparent: 0
