@@ -37,7 +37,7 @@ public class Chunk : MonoBehaviour
         }
     }
 
-    void GenerateMesh()
+    public void GenerateMesh()
     {
         if (data == null)
         {
@@ -70,6 +70,32 @@ public class Chunk : MonoBehaviour
         GetComponent<MeshFilter>().mesh = mesh;
         GetComponent<MeshCollider>().sharedMesh = mesh;
     }
+
+    public void SetBlockWithoutRefresh(Vector3 worldPos, BlockType newType)
+    {
+        int localX = Mathf.FloorToInt(worldPos.x - transform.position.x);
+        int y = Mathf.FloorToInt(worldPos.y);
+        int localZ = Mathf.FloorToInt(worldPos.z - transform.position.z);
+
+        if (IsValidPosition(localX, y, localZ))
+        {
+            data.SetBlock(localX, y, localZ, newType);
+        }
+    }
+
+    private bool IsValidPosition(int x, int y, int z)
+    {
+        return x >= 0 && x < size &&
+               y >= 0 && y < 64 &&
+               z >= 0 && z < size;
+    }
+
+    public void RefreshChunk()
+    {
+        GenerateMesh(); // Maintenant accessible
+        ChunkSaveSystem.SaveChunkData(data);
+    }
+
 
     public void SetBlock(Vector3 worldPos, BlockType newType)
     {

@@ -5,6 +5,12 @@
     dirt,
     stone,
     sand,
+    water,
+    bedrock,
     spruce_log,
-    spruce_leaves
+    spruce_leaves,
+    coal_ore,
+    iron_ore,
+    gold_ore,
+    diamond_ore
 }
