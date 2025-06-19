@@ -2,7 +2,6 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
 
-[ExecuteInEditMode]
 public class ChunkManager : MonoBehaviour
 {
     [Header("Chunk Settings")]

@@ -28,9 +28,27 @@ public class ProceduralWorldManager : MonoBehaviour
     [Header("References")]
     public ChunkManager chunkManager;
     public Transform player;
+    public GameObject loadingScreen; // Référence à l'écran de chargement
+
+    public SaveManager saveManager;
 
     void Start()
     {
+        string world = PlayerPrefs.GetString("SelectedWorld", null);
+
+        if (string.IsNullOrEmpty(world))
+        {
+            Debug.LogWarning("Aucun monde sélectionné. Retour au menu principal.");
+            UnityEngine.SceneManagement.SceneManager.LoadScene("MenuScene");
+            return;
+        }
+
+        if (saveManager != null)
+        {
+            saveManager.currentWorld = world;
+            SaveSystem.CreateWorldFolder(world);
+        }
+
         Random.InitState(worldSeed);
         StartCoroutine(OptimizationLoop());
         StartCoroutine(GenerateInitialChunksAndSpawnPlayer());
@@ -38,20 +56,28 @@ public class ProceduralWorldManager : MonoBehaviour
 
     IEnumerator GenerateInitialChunksAndSpawnPlayer()
     {
+        // Activez l'écran de chargement
+        if (loadingScreen != null)
+        {
+            loadingScreen.SetActive(true);
+        }
+
+        // 1. Génère les chunks autour de (0,0)
         chunkManager.GenerateInitialChunks();
 
         Vector3 spawnXZ = new Vector3(0, 0, 0);
         Vector2Int spawnChunkCoord = chunkManager.GetChunkCoordFromWorldPos(spawnXZ);
 
-        // 1. Attend que le chunk de spawn soit généré ET complètement initialisé
+        // 2. Attend que le chunk de spawn soit chargé
         while (!chunkManager.loadedChunks.ContainsKey(spawnChunkCoord))
             yield return null;
 
+        // 3. Attend que la génération soit complète
         ChunkGenerationState state;
         while (!chunkManager.ChunkStates.TryGetValue(spawnChunkCoord, out state) || state.currentStage != GenerationStage.Complete)
             yield return null;
 
-        // 2. Attend que le MeshCollider soit prêt
+        // 4. Attend que le MeshCollider soit prêt
         Chunk spawnChunk = chunkManager.loadedChunks[spawnChunkCoord];
         MeshCollider meshCollider = null;
         while (meshCollider == null || !meshCollider.enabled || meshCollider.sharedMesh == null)
@@ -60,13 +86,12 @@ public class ProceduralWorldManager : MonoBehaviour
             yield return null;
         }
 
-        // 3. Recherche la vraie surface dans le chunk généré (du haut vers le bas)
+        // 5. Trouve la hauteur du sol à cette position
         int localX = Mathf.FloorToInt(spawnXZ.x) - spawnChunkCoord.x * chunkManager.chunkSize;
         int localZ = Mathf.FloorToInt(spawnXZ.z) - spawnChunkCoord.y * chunkManager.chunkSize;
         int surfaceY = -1;
 
-        // On part du haut du chunk et on descend jusqu'à trouver un bloc solide (non air, non eau)
-        for (int y = chunkManager.maxWorldHeight - 1; y >= 0; y--)
+        for (int y = maxWorldHeight - 1; y >= 0; y--)
         {
             BlockType block = spawnChunk.data.GetBlock(localX, y, localZ);
             if (block != BlockType.air && block != BlockType.water)
@@ -76,11 +101,21 @@ public class ProceduralWorldManager : MonoBehaviour
             }
         }
 
-        // Si on a trouvé la surface, place le joueur juste au-dessus
-        if (surfaceY != -1)
-            player.position = new Vector3(0, surfaceY + 1.1f, 0); // +1.1 pour être sûr d'être au-dessus
-        else
-            player.position = new Vector3(0, chunkManager.seaLevel + 5, 0); // fallback sécurité
+        // 6. Téléporte le joueur juste au-dessus du sol
+        float finalY = (surfaceY != -1) ? surfaceY + 1.1f : chunkManager.proceduralWorldManager.seaLevel + 5f;
+        player.GetComponent<PlayerController>().TeleportTo(new Vector3(0, finalY, 0));
+
+        // Désactivez l'écran de chargement
+        if (loadingScreen != null)
+        {
+            loadingScreen.SetActive(false);
+        }
+
+        // ⬇️ Ajout du chargement du joueur
+        if (saveManager != null)
+        {
+            saveManager.LoadPlayer();
+        }
     }
 
     IEnumerator OptimizationLoop()

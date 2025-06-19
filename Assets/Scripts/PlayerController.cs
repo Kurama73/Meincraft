@@ -110,6 +110,18 @@ public class PlayerController : MonoBehaviour
         wasGroundedLastFrame = isGrounded;
     }
 
+    public void TeleportTo(Vector3 position)
+    {
+        CharacterController controller = GetComponent<CharacterController>();
+        if (controller != null)
+        {
+            controller.enabled = false;
+            transform.position = position;
+            controller.enabled = true;
+        }
+    }
+
+
     void BreakBlock()
     {
         RaycastHit hit;
