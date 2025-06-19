@@ -591,11 +591,11 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 727646434}
-  - component: {fileID: 727646433}
   - component: {fileID: 727646438}
   - component: {fileID: 727646437}
   - component: {fileID: 727646436}
   - component: {fileID: 727646435}
+  - component: {fileID: 727646439}
   m_Layer: 8
   m_Name: ChunkManager
   m_TagString: Block
@@ -603,31 +603,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &727646433
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 727646432}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fdfa93d832f34334bad8524002fa00f6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  chunkSize: 16
-  viewDistance: 8
-  updateDistance: 5
-  blockGenerator: {fileID: 697123294}
-  player: {fileID: 430394551}
-  proceduralWorldManager: {fileID: 1538437465}
-  coalFrequency: 0.02
-  ironFrequency: 0.015
-  goldFrequency: 0.008
-  diamondFrequency: 0.003
-  chunkViewAngle: 200
-  chunkMaterial: {fileID: 2100000, guid: dd15bda05946beb43847ed8369bdd15d, type: 2}
-  maxChunksPerFrame: 2
 --- !u!4 &727646434
 Transform:
   m_ObjectHideFlags: 0
@@ -734,6 +709,31 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 727646432}
   m_Mesh: {fileID: 0}
+--- !u!114 &727646439
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 727646432}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b26d0b63365314f4894b15dbc2392943, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  chunkSize: 16
+  viewDistance: 8
+  updateDistance: 5
+  blockGenerator: {fileID: 697123294}
+  player: {fileID: 430394551}
+  proceduralWorldManager: {fileID: 1538437465}
+  coalFrequency: 0.02
+  ironFrequency: 0.015
+  goldFrequency: 0.008
+  diamondFrequency: 0.003
+  chunkViewAngle: 200
+  chunkMaterial: {fileID: 2100000, guid: dd15bda05946beb43847ed8369bdd15d, type: 2}
+  maxChunksPerFrame: 10
 --- !u!1 &818596804
 GameObject:
   m_ObjectHideFlags: 0
@@ -1202,7 +1202,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 349.10104, y: 0, z: 1406.1575}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1.4391, y: 1.6978, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 934679929}
@@ -1266,8 +1266,9 @@ MonoBehaviour:
   minDirtThickness: 3
   maxDirtThickness: 8
   bedrockDepth: 5
-  chunkManager: {fileID: 727646433}
+  chunkManager: {fileID: 727646439}
   player: {fileID: 430394551}
+  loadingScreen: {fileID: 1298006194}
   saveManager: {fileID: 1885588151}
 --- !u!1 &1844915780
 GameObject:

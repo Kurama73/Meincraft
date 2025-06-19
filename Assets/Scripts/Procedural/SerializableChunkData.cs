@@ -1,40 +1,60 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
+using System.Collections.Generic;
+using System;
 
 [System.Serializable]
 public class SerializableChunkData
 {
-    public int[] coord; // Utilisez un tableau d'entiers pour stocker les coordonnées
-    public int[,,] blocks; // Utilisez un tableau d'entiers pour stocker les types de blocs
+    public int[] coord; // [x, y]
+    public int size;
+    public List<BlockData> blocks; // Liste des blocs avec leurs positions et types
 
     public SerializableChunkData(ChunkData data)
     {
-        // Convertir Vector2Int en tableau d'entiers
         coord = new int[] { data.coord.x, data.coord.y };
+        size = data.blocks.GetLength(0);
+        blocks = new List<BlockData>();
 
-        // Initialiser le tableau de blocs
-        blocks = new int[data.blocks.GetLength(0), data.blocks.GetLength(1), data.blocks.GetLength(2)];
-
-        // Convertir BlockType[,,] en int[,,]
-        for (int x = 0; x < data.blocks.GetLength(0); x++)
-        {
-            for (int y = 0; y < data.blocks.GetLength(1); y++)
-            {
-                for (int z = 0; z < data.blocks.GetLength(2); z++)
+        for (int x = 0; x < size; x++)
+            for (int y = 0; y < 64; y++)
+                for (int z = 0; z < size; z++)
                 {
-                    blocks[x, y, z] = (int)data.blocks[x, y, z];
+                    BlockType block = data.blocks[x, y, z];
+                    if (block != BlockType.air)
+                    {
+                        blocks.Add(new BlockData(x, y, z, (int)block));
+                    }
                 }
-            }
-        }
     }
+
 
     public ChunkData ToChunkData()
     {
-        // Convertir le tableau d'entiers en Vector2Int
-        Vector2Int coordVec = new Vector2Int(coord[0], coord[1]);
+        Vector2Int c = new Vector2Int(coord[0], coord[1]);
+        ChunkData chunkData = new ChunkData(c, size);
 
-        // Créer une nouvelle instance de ChunkData avec les données désérialisées
-        ChunkData data = new ChunkData(coordVec, blocks.GetLength(0), (x, y, z) => (BlockType)blocks[x, y, z]);
-        return data;
+        foreach (BlockData blockData in blocks)
+        {
+            chunkData.SetBlock(blockData.x, blockData.y, blockData.z, (BlockType)blockData.type);
+        }
+
+        return chunkData;
+    }
+}
+
+[Serializable]
+public class BlockData
+{
+    public int x;
+    public int y;
+    public int z;
+    public int type;
+
+    public BlockData(int x, int y, int z, int type)
+    {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.type = type;
     }
 }

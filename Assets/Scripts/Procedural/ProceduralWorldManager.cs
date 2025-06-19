@@ -29,7 +29,6 @@ public class ProceduralWorldManager : MonoBehaviour
     public ChunkManager chunkManager;
     public Transform player;
     public GameObject loadingScreen; // Référence à l'écran de chargement
-
     public SaveManager saveManager;
 
     void Start()
@@ -46,10 +45,20 @@ public class ProceduralWorldManager : MonoBehaviour
         if (saveManager != null)
         {
             saveManager.currentWorld = world;
+            ChunkSaveSystem.CurrentWorld = saveManager.currentWorld;
             SaveSystem.CreateWorldFolder(world);
+
+            // Charger la seed du monde
+            int loadedSeed = saveManager.LoadWorldSeed();
+            if (loadedSeed != -1)
+            {
+                worldSeed = loadedSeed;
+            }
         }
 
+        // Initialiser le générateur de nombres aléatoires avec la seed
         Random.InitState(worldSeed);
+
         StartCoroutine(OptimizationLoop());
         StartCoroutine(GenerateInitialChunksAndSpawnPlayer());
     }
@@ -101,9 +110,13 @@ public class ProceduralWorldManager : MonoBehaviour
             }
         }
 
-        // 6. Téléporte le joueur juste au-dessus du sol
+        // 6. Charge la position du joueur
+        Vector3 savedPlayerPosition = saveManager.LoadPlayerPosition();
+
+        // 7. Téléporte le joueur à la position sauvegardée ou juste au-dessus du sol
         float finalY = (surfaceY != -1) ? surfaceY + 1.1f : chunkManager.proceduralWorldManager.seaLevel + 5f;
-        player.GetComponent<PlayerController>().TeleportTo(new Vector3(0, finalY, 0));
+        Vector3 spawnPosition = new Vector3(savedPlayerPosition.x, finalY, savedPlayerPosition.z);
+        player.GetComponent<PlayerController>().TeleportTo(spawnPosition);
 
         // Désactivez l'écran de chargement
         if (loadingScreen != null)
@@ -133,10 +146,10 @@ public class ProceduralWorldManager : MonoBehaviour
     public float GetHeightAtPosition(float x, float z, BiomeType biomeType)
     {
         // Génération de terrain multi-octaves
-        float continentNoise = Mathf.PerlinNoise(x * continentScale, z * continentScale);
-        float elevationNoise = Mathf.PerlinNoise(x * elevationScale, z * elevationScale) * 0.5f;
-        float ridgeNoise = Mathf.PerlinNoise(x * ridgeScale, z * ridgeScale) * 0.25f;
-        float detailNoise = Mathf.PerlinNoise(x * detailScale, z * detailScale) * 0.1f;
+        float continentNoise = Mathf.PerlinNoise(x * continentScale + worldSeed, z * continentScale + worldSeed);
+        float elevationNoise = Mathf.PerlinNoise(x * elevationScale + worldSeed, z * elevationScale + worldSeed) * 0.5f;
+        float ridgeNoise = Mathf.PerlinNoise(x * ridgeScale + worldSeed, z * ridgeScale + worldSeed) * 0.25f;
+        float detailNoise = Mathf.PerlinNoise(x * detailScale + worldSeed, z * detailScale + worldSeed) * 0.1f;
 
         float combinedNoise = (continentNoise + elevationNoise + ridgeNoise + detailNoise) / 1.85f;
 
@@ -146,9 +159,9 @@ public class ProceduralWorldManager : MonoBehaviour
 
     public BiomeType DetermineBiome(float x, float z)
     {
-        float temperature = Mathf.PerlinNoise(x * temperatureScale, z * temperatureScale);
-        float humidity = Mathf.PerlinNoise(x * humidityScale + 1000, z * humidityScale + 1000);
-        float continentNoise = Mathf.PerlinNoise(x * continentScale, z * continentScale);
+        float temperature = Mathf.PerlinNoise(x * temperatureScale + worldSeed, z * temperatureScale + worldSeed);
+        float humidity = Mathf.PerlinNoise(x * humidityScale + worldSeed, z * humidityScale + worldSeed);
+        float continentNoise = Mathf.PerlinNoise(x * continentScale + worldSeed, z * continentScale + worldSeed);
 
         temperature = Mathf.Clamp01(temperature);
         humidity = Mathf.Clamp01(humidity);
@@ -179,7 +192,7 @@ public class ProceduralWorldManager : MonoBehaviour
         }
     }
 
-    // Système de blending entre biomes pour éviter les transitions abruptes [24]
+    // Système de blending entre biomes pour éviter les transitions abruptes
     public float GetBlendedHeight(float x, float z)
     {
         // Échantillonnage de points autour de la position actuelle
@@ -206,7 +219,7 @@ public class ProceduralWorldManager : MonoBehaviour
             }
         }
 
-        // Calcul de la hauteur pondérée [25]
+        // Calcul de la hauteur pondérée
         float blendedHeight = 0f;
         foreach (var sample in samples)
         {
@@ -218,16 +231,16 @@ public class ProceduralWorldManager : MonoBehaviour
         return blendedHeight;
     }
 
-    // Génération de hauteur multi-octaves comme dans Minecraft [4][18]
+    // Génération de hauteur multi-octaves comme dans Minecraft
     private float GetHeightForBiome(float x, float z, BiomeType biomeType)
     {
-        // Génération de terrain en multiple octaves pour plus de réalisme [18]
-        float continentNoise = Mathf.PerlinNoise(x * continentScale, z * continentScale);
-        float elevationNoise = Mathf.PerlinNoise(x * elevationScale, z * elevationScale) * 0.5f;
-        float ridgeNoise = Mathf.PerlinNoise(x * ridgeScale, z * ridgeScale) * 0.25f;
-        float detailNoise = Mathf.PerlinNoise(x * detailScale, z * detailScale) * 0.1f;
+        // Génération de terrain en multiple octaves pour plus de réalisme
+        float continentNoise = Mathf.PerlinNoise(x * continentScale + worldSeed, z * continentScale + worldSeed);
+        float elevationNoise = Mathf.PerlinNoise(x * elevationScale + worldSeed, z * elevationScale + worldSeed) * 0.5f;
+        float ridgeNoise = Mathf.PerlinNoise(x * ridgeScale + worldSeed, z * ridgeScale + worldSeed) * 0.25f;
+        float detailNoise = Mathf.PerlinNoise(x * detailScale + worldSeed, z * detailScale + worldSeed) * 0.1f;
 
-        // Normalisation des octaves pour éviter les valeurs trop élevées [6]
+        // Normalisation des octaves pour éviter les valeurs trop élevées
         float combinedNoise = (continentNoise + elevationNoise + ridgeNoise + detailNoise) / 1.85f;
 
         // Application des paramètres spécifiques au biome
@@ -235,13 +248,13 @@ public class ProceduralWorldManager : MonoBehaviour
         return seaLevel + biomeData.baseHeight + (combinedNoise * biomeData.heightVariation);
     }
 
-    // Génération des couches géologiques inspirée de Minecraft [10][11]
+    // Génération des couches géologiques inspirée de Minecraft
     public BlockType GetBlockAtPosition(int x, int y, int z)
     {
         float terrainHeight = GetBlendedHeight(x, z);
         int surfaceLevel = Mathf.FloorToInt(terrainHeight);
 
-        // Bedrock au fond du monde [10][14]
+        // Bedrock au fond du monde
         if (y <= bedrockDepth)
             return BlockType.bedrock;
 
@@ -256,7 +269,7 @@ public class ProceduralWorldManager : MonoBehaviour
             return GetSurfaceBlock(biome);
         }
 
-        // Couches de terre (dirt) [13]
+        // Couches de terre (dirt)
         int dirtThickness = Random.Range(minDirtThickness, maxDirtThickness + 1);
         if (y > surfaceLevel - dirtThickness)
             return BlockType.dirt;
@@ -296,5 +309,14 @@ public class ProceduralWorldManager : MonoBehaviour
         }
 
         return spawnPos;
+    }
+
+    void OnApplicationQuit()
+    {
+        if (saveManager != null)
+        {
+            saveManager.SavePlayer();
+            saveManager.SavePlayerPosition();
+        }
     }
 }

@@ -28,7 +28,6 @@ public class ChunkManager : MonoBehaviour
     private Vector2Int lastPlayerChunk = Vector2Int.zero;
     private Camera playerCamera;
     public float chunkViewAngle = 200f;
-
     public Material chunkMaterial;
 
     private Dictionary<Vector2Int, ChunkGenerationState> chunkStates = new Dictionary<Vector2Int, ChunkGenerationState>();
@@ -36,11 +35,10 @@ public class ChunkManager : MonoBehaviour
     private List<Vector2Int> chunksBeingGenerated = new List<Vector2Int>();
     private Queue<Vector2Int> chunkGenerationQueue = new Queue<Vector2Int>();
     private bool isChunkGenerationRunning = false;
-    public int maxChunksPerFrame = 2; // Ajuste selon tes besoins/performance
+    public int maxChunksPerFrame = 12;
     public Dictionary<Vector2Int, ChunkGenerationState> ChunkStates => chunkStates;
 
     // --- GÉNÉRATION MULTI-ÉTAPES ---
-
     public IEnumerator CreateChunkStaged(Vector2Int coord)
     {
         if (loadedChunks.ContainsKey(coord)) yield break;
@@ -60,14 +58,13 @@ public class ChunkManager : MonoBehaviour
         yield return StartCoroutine(GenerateCavesStage(newChunk, state));
         yield return StartCoroutine(GenerateDecorationsStage(newChunk, state));
         yield return StartCoroutine(GenerateTreesStage(newChunk, state));
-        // Ajoute d'autres étapes ici si besoin (rivières, structures, ressources...)
 
+        // Ajoute d'autres étapes ici si besoin (rivières, structures, ressources...)
         state.currentStage = GenerationStage.Complete;
         chunksBeingGenerated.Remove(coord);
     }
 
     // --- STUBS POUR LES ÉTAPES DE GÉNÉRATION ---
-
     private IEnumerator GenerateTerrainStage(Chunk chunk, ChunkGenerationState state)
     {
         chunk.Initialize(state.coord, chunkSize, (localX, y, localZ) =>
@@ -113,13 +110,13 @@ public class ChunkManager : MonoBehaviour
     }
 
     // --- GÉNÉRATION D'ARBRES ---
-
     IEnumerator GenerateTreesForChunk(Vector2Int coord, Biome biome)
     {
         if (biome.type != BiomeType.Forest) yield break;
 
         int treesToGenerate = Random.Range(2, 5);
         float[,] noiseMap = new float[chunkSize, chunkSize];
+
         for (int x = 0; x < chunkSize; x++)
         {
             for (int z = 0; z < chunkSize; z++)
@@ -155,7 +152,6 @@ public class ChunkManager : MonoBehaviour
     }
 
     // --- UTILS ---
-
     private GameObject CreateChunkGameObject(Vector2Int coord)
     {
         GameObject chunkObject = new GameObject($"Chunk_{coord.x}_{coord.y}");
@@ -167,12 +163,11 @@ public class ChunkManager : MonoBehaviour
             Debug.LogWarning("Layer 'Chunk' is not defined. Using default layer.");
             chunkLayer = 0;
         }
-        chunkObject.layer = chunkLayer;
 
+        chunkObject.layer = chunkLayer;
         chunkObject.AddComponent<MeshFilter>();
         chunkObject.AddComponent<MeshRenderer>();
         chunkObject.AddComponent<MeshCollider>();
-
         chunkObject.GetComponent<MeshRenderer>().material = chunkMaterial;
 
         return chunkObject;
@@ -193,7 +188,6 @@ public class ChunkManager : MonoBehaviour
     }
 
     // --- GESTION DES CHUNKS ---
-
     void Start()
     {
         playerCamera = Camera.main;
@@ -207,7 +201,6 @@ public class ChunkManager : MonoBehaviour
 
         BiomeType biomeType = proceduralWorldManager.DetermineBiome(player.position.x, player.position.z);
         Biome currentBiome = GetBiomeFromType(biomeType);
-        Debug.Log($"Biome: {currentBiome.type}");
 
         if (Vector2Int.Distance(currentPlayerChunk, lastPlayerChunk) > updateDistance)
         {
@@ -220,7 +213,9 @@ public class ChunkManager : MonoBehaviour
 
     public void GenerateInitialChunks()
     {
+        int generationRadius = viewDistance * 2;
         Vector2Int playerChunk = GetChunkCoordFromWorldPos(player.position);
+
         for (int x = -viewDistance; x <= viewDistance; x++)
         {
             for (int z = -viewDistance; z <= viewDistance; z++)
@@ -235,22 +230,25 @@ public class ChunkManager : MonoBehaviour
                 }
             }
         }
+
         if (!isChunkGenerationRunning)
             StartCoroutine(ProcessChunkGenerationQueue());
     }
 
     void UpdateChunks()
     {
+        int generationRadius = viewDistance * 2;
         Vector2Int playerChunk = GetChunkCoordFromWorldPos(player.position);
 
         // 1. Détermine les chunks à garder/générer
         HashSet<Vector2Int> neededChunks = new HashSet<Vector2Int>();
+
         for (int x = -viewDistance; x <= viewDistance; x++)
         {
             for (int z = -viewDistance; z <= viewDistance; z++)
             {
                 Vector2Int chunkCoord = new Vector2Int(playerChunk.x + x, playerChunk.y + z);
-                if (Vector2Int.Distance(chunkCoord, playerChunk) <= viewDistance)
+                if (Vector2Int.Distance(chunkCoord, playerChunk) <= generationRadius)
                 {
                     neededChunks.Add(chunkCoord);
                     if (!loadedChunks.ContainsKey(chunkCoord) && !chunkGenerationQueue.Contains(chunkCoord))
@@ -263,6 +261,7 @@ public class ChunkManager : MonoBehaviour
 
         // 2. Détermine les chunks à décharger
         List<Vector2Int> chunksToRemove = new List<Vector2Int>();
+
         foreach (var chunk in loadedChunks)
         {
             if (!neededChunks.Contains(chunk.Key))
@@ -270,6 +269,7 @@ public class ChunkManager : MonoBehaviour
                 chunksToRemove.Add(chunk.Key);
             }
         }
+
         foreach (var coord in chunksToRemove)
         {
             DestroyChunk(coord);
@@ -283,9 +283,11 @@ public class ChunkManager : MonoBehaviour
     private IEnumerator ProcessChunkGenerationQueue()
     {
         isChunkGenerationRunning = true;
+
         while (chunkGenerationQueue.Count > 0)
         {
             int generatedThisFrame = 0;
+
             while (generatedThisFrame < maxChunksPerFrame && chunkGenerationQueue.Count > 0)
             {
                 Vector2Int coord = chunkGenerationQueue.Dequeue();
@@ -295,9 +297,11 @@ public class ChunkManager : MonoBehaviour
                 }
                 generatedThisFrame++;
             }
+
             // Attend la fin de la frame pour ne pas bloquer le jeu
             yield return null;
         }
+
         isChunkGenerationRunning = false;
     }
 
@@ -333,19 +337,18 @@ public class ChunkManager : MonoBehaviour
         {
             if (loadedChunks[coord] != null)
             {
-                #if UNITY_EDITOR
-                    if (!Application.isPlaying)
-                        DestroyImmediate(loadedChunks[coord].gameObject);
-                    else
-                        Destroy(loadedChunks[coord].gameObject);
-                #else
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                    DestroyImmediate(loadedChunks[coord].gameObject);
+                else
                     Destroy(loadedChunks[coord].gameObject);
-                #endif
+#else
+                    Destroy(loadedChunks[coord].gameObject);
+#endif
             }
             loadedChunks.Remove(coord);
         }
     }
-
 
     /// <summary>
     /// Supprime tous les chunks chargés dans la scène.
@@ -376,10 +379,26 @@ public class ChunkManager : MonoBehaviour
     {
         Vector3 worldPos = new Vector3(x, y, z);
         Vector2Int chunkCoord = GetChunkCoordFromWorldPos(worldPos);
-
         if (loadedChunks.TryGetValue(chunkCoord, out Chunk chunk) && chunk != null)
         {
             chunk.SetBlock(worldPos, type);
         }
+    }
+
+    void OnApplicationQuit()
+    {
+        SaveAllChunks();
+    }
+
+    public void SaveAllChunks()
+    {
+        foreach (var kvp in loadedChunks)
+        {
+            if (kvp.Value != null)
+            {
+                ChunkSaveSystem.SaveChunkData(kvp.Value.data);
+            }
+        }
+        Debug.Log("Tous les chunks actifs ont été sauvegardés.");
     }
 }

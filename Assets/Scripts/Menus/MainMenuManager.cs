@@ -131,20 +131,23 @@ public class WorldMenuManager : MonoBehaviour
             return;
         }
 
-        string newWorldPath = Path.Combine(SaveSystem.GetSaveDirectory(), newWorldName);
+        string newWorldPath = SaveSystem.GetWorldPath(newWorldName);
         if (!Directory.Exists(newWorldPath))
         {
             Directory.CreateDirectory(newWorldPath);
-            Debug.Log("Created new world directory: " + newWorldPath);
+            int randomSeed = Random.Range(int.MinValue, int.MaxValue);
+            SaveSystem.SaveWorldSeed(newWorldName, randomSeed);
+            Debug.Log($"Created world {newWorldName} with seed {randomSeed}");
         }
         else
         {
-            Debug.LogWarning("World directory already exists: " + newWorldPath);
+            Debug.LogWarning("World already exists.");
         }
 
         savedWorlds.Add(newWorldName);
         RefreshWorldList();
     }
+
 
     void DeleteWorld(string worldName)
     {

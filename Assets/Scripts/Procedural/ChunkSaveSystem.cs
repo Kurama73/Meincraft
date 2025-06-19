@@ -1,10 +1,14 @@
 ﻿using System;
 using System.IO;
 using UnityEngine;
+using System.Collections.Generic;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Runtime.Serialization;
 
 public static class ChunkSaveSystem
 {
-    private static string SavePath => Path.Combine(Application.persistentDataPath, "Chunks");
+    public static string CurrentWorld = "DefaultWorld";
+    private static string SavePath => Path.Combine(Application.persistentDataPath, "Saves", CurrentWorld, "Chunks");
 
     public static bool ChunkExists(Vector2Int coord)
     {
@@ -19,10 +23,12 @@ public static class ChunkSaveSystem
             Directory.CreateDirectory(SavePath);
             string path = Path.Combine(SavePath, GetFileName(data.coord));
 
-            SerializableChunkData serializableData = new SerializableChunkData(data);
-            string jsonData = JsonUtility.ToJson(serializableData);
-
-            File.WriteAllText(path, jsonData);
+            IFormatter formatter = new BinaryFormatter();
+            using (Stream stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                SerializableChunkData serializableData = new SerializableChunkData(data);
+                formatter.Serialize(stream, serializableData);
+            }
         }
         catch (Exception e)
         {
@@ -38,34 +44,24 @@ public static class ChunkSaveSystem
             Debug.LogWarning($"Chunk file not found: {path}");
             return null;
         }
-
         try
         {
-            string jsonData = File.ReadAllText(path);
-            if (string.IsNullOrEmpty(jsonData))
+            IFormatter formatter = new BinaryFormatter();
+            using (Stream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                Debug.LogError($"Failed to load chunk data: File is empty.");
-                return null;
+                SerializableChunkData serializableData = (SerializableChunkData)formatter.Deserialize(stream);
+                return serializableData.ToChunkData();
             }
-
-            SerializableChunkData serializableData = JsonUtility.FromJson<SerializableChunkData>(jsonData);
-            if (serializableData == null)
-            {
-                Debug.LogError($"Failed to load chunk data: Deserialization failed.");
-                return null;
-            }
-
-            return serializableData.ToChunkData();
         }
-        catch (Exception e)
+        catch (System.Exception e)
         {
-            Debug.LogError($"Failed to load chunk data: {e.Message}");
+            Debug.LogError($"Failed to load chunk data at {path}: {e}");
             return null;
         }
     }
 
     private static string GetFileName(Vector2Int coord)
     {
-        return $"chunk_{coord.x}_{coord.y}.json";
+        return $"chunk_{coord.x}_{coord.y}.dat";
     }
 }
