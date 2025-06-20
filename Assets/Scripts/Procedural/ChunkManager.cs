@@ -69,6 +69,8 @@ public class ChunkManager : MonoBehaviour
         newChunk.coord = coord;
         newChunk.size = chunkSize;
 
+        newChunk.data = new ChunkData(coord, chunkSize);
+
         // Étapes de génération avec plus de points de rendement
         yield return StartCoroutine(GenerateTerrainStage(newChunk, state));
 
@@ -269,7 +271,9 @@ public class ChunkManager : MonoBehaviour
     void Start()
     {
         playerCamera = Camera.main;
-        if (player == null) player = FindObjectOfType<PlayerController>().transform;
+        if (player == null) player = FindObjectOfType<PlayerController>()?.transform;
+        if (player != null)
+            GenerateInitialChunks();
         GenerateInitialChunks();
     }
 
@@ -291,7 +295,8 @@ public class ChunkManager : MonoBehaviour
 
     public void GenerateInitialChunks()
     {
-        int generationRadius = viewDistance * 2;
+        int generationRadius = viewDistance; // cohérent avec le reste
+
         Vector2Int playerChunk = GetChunkCoordFromWorldPos(player.position);
 
         for (int x = -viewDistance; x <= viewDistance; x++)

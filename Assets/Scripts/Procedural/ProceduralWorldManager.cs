@@ -74,7 +74,6 @@ public class ProceduralWorldManager : MonoBehaviour
         if (loadingScreen != null)
             loadingScreen.SetActive(true);
 
-        // Position de spawn : sauvegardée ou générée
         Vector3 spawnPosition = Vector3.zero;
 
         if (saveManager != null)
@@ -95,7 +94,6 @@ public class ProceduralWorldManager : MonoBehaviour
 
         Vector2Int spawnChunkCoord = chunkManager.GetChunkCoordFromWorldPos(spawnPosition);
 
-        // Générer chunk de spawn + voisins 3x3 en priorité
         List<Vector2Int> priorityChunks = new List<Vector2Int>();
         for (int x = -1; x <= 1; x++)
             for (int z = -1; z <= 1; z++)
@@ -107,21 +105,36 @@ public class ProceduralWorldManager : MonoBehaviour
                 yield return StartCoroutine(chunkManager.CreateChunkStaged(coord));
         }
 
-        // Attendre que le chunk spawn soit prêt (MeshCollider actif)
-        while (!chunkManager.loadedChunks.TryGetValue(spawnChunkCoord, out var chunk) ||
-               chunk.GetComponent<MeshCollider>() == null ||
-               !chunk.GetComponent<MeshCollider>().enabled)
+        bool allReady = false;
+        while (!allReady)
         {
-            yield return null;
+            allReady = true;
+            foreach (var coord in priorityChunks)
+            {
+                if (!chunkManager.loadedChunks.TryGetValue(coord, out var chunk))
+                {
+                    allReady = false;
+                    break;
+                }
+                var mc = chunk.GetComponent<MeshCollider>();
+                if (mc == null || !mc.enabled)
+                {
+                    allReady = false;
+                    break;
+                }
+            }
+            if (!allReady)
+                yield return null;
         }
 
-        // Calculer la hauteur réelle à la position de spawn selon le biome
         float surfaceY = GetHeightAtPosition(spawnPosition.x, spawnPosition.z, DetermineBiome(spawnPosition.x, spawnPosition.z));
-        Vector3 finalSpawnPos = new Vector3(spawnPosition.x, surfaceY + 1.5f, spawnPosition.z);
 
-        // Désactiver physique pendant placement
+        // Placer plus haut initialement pour éviter tomber dans le sol
+        Vector3 finalSpawnPos = new Vector3(spawnPosition.x, surfaceY + 3f, spawnPosition.z);
+
         Rigidbody playerRb = player.GetComponent<Rigidbody>();
         bool wasKinematic = false;
+        Collider playerCollider = player.GetComponent<Collider>();
 
         if (playerRb != null)
         {
@@ -129,31 +142,29 @@ public class ProceduralWorldManager : MonoBehaviour
             playerRb.isKinematic = true;
         }
 
+        // Désactiver collider le temps du placement si besoin (optionnel)
+        if (playerCollider != null)
+            playerCollider.enabled = false;
+
         player.position = finalSpawnPos;
 
-        // Attendre que le joueur soit bien au sol en ajustant sa position avec un raycast vers le bas
-        bool grounded = false;
-        int tries = 0;
-        while (!grounded && tries < 50)
-        {
-            Ray ray = new Ray(player.position, Vector3.down);
-            if (Physics.Raycast(ray, out RaycastHit hit, 10f))
-            {
-                player.position = hit.point + Vector3.up * 1.5f;
-                grounded = true;
-            }
-            else
-            {
-                player.position += Vector3.down * 0.5f;
-                yield return new WaitForSeconds(0.05f);
-                tries++;
-            }
-        }
-
+        // Attendre 2 frames pour stabiliser la physique terrain
+        yield return null;
         yield return null;
 
+        // Optionnel: raycast vers le bas pour corriger la position si trop haut
+        Ray ray = new Ray(player.position, Vector3.down);
+        if (Physics.Raycast(ray, out RaycastHit hit, 10f))
+        {
+            player.position = hit.point + Vector3.up * 1.5f;
+        }
+
+        // Réactiver physique et collider
         if (playerRb != null)
             playerRb.isKinematic = wasKinematic;
+
+        if (playerCollider != null)
+            playerCollider.enabled = true;
 
         if (saveManager != null)
             saveManager.LoadPlayer();
@@ -161,9 +172,9 @@ public class ProceduralWorldManager : MonoBehaviour
         if (loadingScreen != null)
             loadingScreen.SetActive(false);
 
-        // Lancer la génération des autres chunks
         chunkManager.GenerateInitialChunks();
     }
+
 
 
     IEnumerator OptimizationLoop()

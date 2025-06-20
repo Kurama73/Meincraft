@@ -26,6 +26,12 @@ public class PlayerController : MonoBehaviour
     private float verticalRotation = 0f;
     private bool jumpPressed = false;
     private bool isSprinting = false;
+    private bool isFlying = false;
+    private float flySpeed = 8f;
+
+    private float lastJumpTime = 0f;
+    private float doubleTapDelay = 0.3f;
+
 
     private bool wasGroundedLastFrame = false;
 
@@ -51,7 +57,20 @@ public class PlayerController : MonoBehaviour
     public void OnJump(InputAction.CallbackContext context)
     {
         if (context.performed)
-            jumpPressed = true;
+        {
+            float time = Time.time;
+            if (time - lastJumpTime < doubleTapDelay)
+            {
+                isFlying = !isFlying;
+                velocity.y = 0f; // reset vertical velocity
+            }
+            else
+            {
+                jumpPressed = true;
+            }
+
+            lastJumpTime = time;
+        }
     }
 
     public void OnSprint(InputAction.CallbackContext context)
@@ -84,31 +103,41 @@ public class PlayerController : MonoBehaviour
 
     void HandleMovement()
     {
+        if (!controller.enabled) return; // 🛑 Empêche les erreurs
+
         bool isGrounded = controller.isGrounded;
 
-        if (isGrounded && velocity.y < 0)
-        {
-            velocity.y = -1f; // Assure qu'on reste bien collé au sol
-        }
-
-        // Mouvement horizontal
         Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
-        float finalSpeed = isSprinting ? speed * sprintMultiplier : speed;
-        controller.Move(move * finalSpeed * Time.deltaTime);
 
-        // Saut
-        if (jumpPressed && isGrounded)
+        if (isFlying)
         {
-            velocity.y = Mathf.Sqrt(jumpForce * -2f * gravity);
-        }
-        jumpPressed = false;
+            if (Keyboard.current.eKey.isPressed) move += Vector3.up;
+            if (Keyboard.current.qKey.isPressed) move += Vector3.down;
 
-        // Gravité
-        velocity.y += gravity * Time.deltaTime;
-        controller.Move(velocity * Time.deltaTime);
+            float flyFinalSpeed = isSprinting ? flySpeed * 5f : flySpeed;
+            controller.Move(move * flyFinalSpeed * Time.deltaTime);
+            velocity = Vector3.zero;
+        }
+        else
+        {
+            float finalSpeed = isSprinting ? speed * sprintMultiplier : speed;
+
+            if (isGrounded && velocity.y < 0) velocity.y = -1f;
+            controller.Move(move * finalSpeed * Time.deltaTime);
+
+            if (jumpPressed && isGrounded)
+                velocity.y = Mathf.Sqrt(jumpForce * -2f * gravity);
+
+            jumpPressed = false;
+            velocity.y += gravity * Time.deltaTime;
+            controller.Move(velocity * Time.deltaTime);
+        }
 
         wasGroundedLastFrame = isGrounded;
     }
+
+
+
 
     public void TeleportTo(Vector3 position)
     {
@@ -124,16 +153,20 @@ public class PlayerController : MonoBehaviour
 
     void BreakBlock()
     {
-        RaycastHit hit;
-        if (Physics.Raycast(playerCamera.transform.position, playerCamera.transform.forward, out hit, reachDistance))
+        Vector3 origin = playerCamera.transform.position + playerCamera.transform.forward * 0.3f; // Avance le point d'origine
+        Vector3 direction = playerCamera.transform.forward;
+
+        if (Physics.Raycast(origin, direction, out RaycastHit hit, reachDistance, ~LayerMask.GetMask("Player"), QueryTriggerInteraction.Ignore))
         {
             Chunk chunk = hit.collider.GetComponent<Chunk>();
             if (chunk != null)
             {
-                Vector3 hitPosition = hit.point - hit.normal * 0.5f; // Ajustez la position pour cibler le centre du bloc
+                Vector3 hitPosition = hit.point - hit.normal * 0.5f;
                 chunk.SetBlock(hitPosition, BlockType.air);
             }
         }
     }
+
+
 
 }
