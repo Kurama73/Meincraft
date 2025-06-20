@@ -1,53 +1,119 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 
 public class TreeGenerator
 {
     public ChunkManager chunkManager;
 
-    public void GenerateTree(Vector3 position)
+    public void GenerateDenseForest(Vector2Int coord, Biome biome)
     {
-        BatchUpdate(() => {
-            // Tronc
-            for (int y = 0; y < 5; y++)
-            {
-                SetBlock(position.x, position.y + y, position.z, BlockType.spruce_log);
-            }
+        int spacing = Random.Range(5, 10);
+        int treesPerRow = chunkManager.chunkSize / spacing;
 
-            // Feuillage
-            GenerateFoliage(position + Vector3.up * 5);
-        });
+        if (!chunkManager.loadedChunks.TryGetValue(coord, out Chunk chunk) || chunk.data == null)
+            return;
+
+        for (int i = 0; i < treesPerRow; i++)
+        {
+            for (int j = 0; j < treesPerRow; j++)
+            {
+                int localX = i * spacing + Random.Range(0, 2);
+                int localZ = j * spacing + Random.Range(0, 2);
+
+                if (localX >= chunkManager.chunkSize || localZ >= chunkManager.chunkSize)
+                    continue;
+
+                int groundY = GetSurfaceY(chunk.data, localX, localZ);
+                if (groundY <= 0 || groundY >= chunkManager.proceduralWorldManager.maxWorldHeight - 6)
+                    continue;
+
+                Vector3 worldPos = new Vector3(
+                    coord.x * chunkManager.chunkSize + localX,
+                    groundY + 1,
+                    coord.y * chunkManager.chunkSize + localZ
+                );
+
+                GenerateTree(worldPos);
+            }
+        }
     }
 
-    void GenerateFoliage(Vector3 center)
+    int GetSurfaceY(ChunkData data, int x, int z)
     {
+        for (int y = chunkManager.proceduralWorldManager.maxWorldHeight - 1; y >= 0; y--)
+        {
+            BlockType block = data.GetBlock(x, y, z);
+            if (block != BlockType.air)
+                return y;
+        }
+        // Pas de bloc solide trouvé, on renvoie une hauteur par défaut au niveau du sol
+        return 1;
+    }
+
+
+
+
+    public void GenerateTree(Vector3 position)
+    {
+        List<Vector3> foliage = new List<Vector3>();
+        List<Vector3> logs = new List<Vector3>();
+
+        // Tronc
+        int height = Random.Range(4, 6);
+        for (int y = 0; y < height; y++)
+            logs.Add(position + Vector3.up * y);
+
+        // Feuillage
+        Vector3 top = position + Vector3.up * height;
         for (int x = -2; x <= 2; x++)
         {
             for (int z = -2; z <= 2; z++)
             {
-                if (Mathf.Abs(x) == 2 && Mathf.Abs(z) == 2) continue;
-                SetBlock(center.x + x, center.y, center.z + z, BlockType.spruce_leaves);
+                float dist = Mathf.Abs(x) + Mathf.Abs(z);
+                if (dist > 3) continue;
 
-                // Couche supérieure
-                if (x == 0 || z == 0)
-                    SetBlock(center.x + x, center.y + 1, center.z + z, BlockType.spruce_leaves);
+                foliage.Add(top + new Vector3(x, 0, z));
+
+                if (dist <= 1)
+                    foliage.Add(top + new Vector3(x, 1, z));
             }
+        }
+
+        BatchUpdate(logs, foliage);
+    }
+
+    void BatchUpdate(List<Vector3> logs, List<Vector3> foliage)
+    {
+        HashSet<Vector2Int> modifiedChunks = new HashSet<Vector2Int>();
+
+        foreach (var pos in logs)
+        {
+            if (SetBlock(pos, BlockType.spruce_log, out Vector2Int coord))
+                modifiedChunks.Add(coord);
+        }
+
+        foreach (var pos in foliage)
+        {
+            if (SetBlock(pos, BlockType.spruce_leaves, out Vector2Int coord))
+                modifiedChunks.Add(coord);
+        }
+
+        // Rafraîchir uniquement les chunks modifiés
+        foreach (var coord in modifiedChunks)
+        {
+            if (chunkManager.loadedChunks.TryGetValue(coord, out Chunk chunk))
+                chunk.RefreshChunk();
         }
     }
 
-    void BatchUpdate(System.Action action)
+    bool SetBlock(Vector3 worldPos, BlockType type, out Vector2Int chunkCoord)
     {
-        action.Invoke();
-    }
-
-    void SetBlock(float x, float y, float z, BlockType type)
-    {
-        Vector3 worldPos = new Vector3(x, y, z);
-        Vector2Int chunkCoord = chunkManager.GetChunkCoordFromWorldPos(worldPos);
-
+        chunkCoord = chunkManager.GetChunkCoordFromWorldPos(worldPos);
         if (chunkManager.loadedChunks.TryGetValue(chunkCoord, out Chunk chunk))
         {
             chunk.SetBlockWithoutRefresh(worldPos, type);
-            chunk.RefreshChunk(); // Appeler explicitement le refresh
+            return true;
         }
+        return false;
     }
 }

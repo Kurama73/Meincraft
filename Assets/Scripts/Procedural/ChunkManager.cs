@@ -1,6 +1,11 @@
 using UnityEngine;
+using Random = UnityEngine.Random;
 using System.Collections.Generic;
 using System.Collections;
+using System.IO;
+using System;
+using Unity.Collections;
+using Unity.Jobs;
 
 public class ChunkManager : MonoBehaviour
 {
@@ -43,6 +48,15 @@ public class ChunkManager : MonoBehaviour
     {
         if (loadedChunks.ContainsKey(coord)) yield break;
 
+        // Vérification du stockage avec gestion des erreurs
+        if (ChunkSaveSystem.ChunkExists(coord))
+        {
+            bool loadSuccess = false;
+            yield return StartCoroutine(LoadChunkFromStorageSafe(coord, success => loadSuccess = success));
+            if (loadSuccess) yield break;
+            // Si le chargement échoue, on continue avec la génération
+        }
+
         // Création de l'état de génération
         ChunkGenerationState state = new ChunkGenerationState(coord);
         chunkStates[coord] = state;
@@ -52,34 +66,97 @@ public class ChunkManager : MonoBehaviour
         GameObject chunkObject = CreateChunkGameObject(coord);
         Chunk newChunk = chunkObject.AddComponent<Chunk>();
         loadedChunks.Add(coord, newChunk);
+        newChunk.coord = coord;
+        newChunk.size = chunkSize;
 
-        // Étapes de génération séquentielles
+        // Étapes de génération avec plus de points de rendement
         yield return StartCoroutine(GenerateTerrainStage(newChunk, state));
+
+        // Après la génération du terrain, le chunk est déjà utilisable
+        // On active le collider pour que le joueur puisse interagir avec
+        if (newChunk.GetComponent<MeshCollider>() != null)
+        {
+            newChunk.GetComponent<MeshCollider>().enabled = true;
+        }
+
+        // On continue la génération en arrière-plan
         yield return StartCoroutine(GenerateCavesStage(newChunk, state));
         yield return StartCoroutine(GenerateDecorationsStage(newChunk, state));
         yield return StartCoroutine(GenerateTreesStage(newChunk, state));
 
-        // Ajoute d'autres étapes ici si besoin (rivières, structures, ressources...)
+        // Sauvegarde le chunk après génération complète
+        ChunkSaveSystem.SaveChunkData(newChunk.data);
+
         state.currentStage = GenerationStage.Complete;
         chunksBeingGenerated.Remove(coord);
     }
 
+    private IEnumerator LoadChunkFromStorageSafe(Vector2Int coord, System.Action<bool> callback)
+    {
+        bool success = false;
+        try
+        {
+            ChunkData data = ChunkSaveSystem.LoadChunkData(coord);
+            if (data != null)
+            {
+                GameObject chunkObject = CreateChunkGameObject(coord);
+                Chunk newChunk = chunkObject.AddComponent<Chunk>();
+                newChunk.data = data;
+                newChunk.size = chunkSize;
+                newChunk.coord = coord;
+                loadedChunks.Add(coord, newChunk);
+                newChunk.GenerateMesh();
+                success = true;
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Error loading chunk {coord}: {e.Message}");
+            // Suppression du fichier corrompu
+            string path = Path.Combine(ChunkSaveSystem.SavePath, $"chunk_{coord.x}_{coord.y}.json");
+            if (File.Exists(path))
+            {
+                Debug.Log($"Deleting corrupted chunk file: {path}");
+                File.Delete(path);
+            }
+        }
+
+        yield return null;
+        callback(success);
+    }
+
+
     // --- STUBS POUR LES ÉTAPES DE GÉNÉRATION ---
     private IEnumerator GenerateTerrainStage(Chunk chunk, ChunkGenerationState state)
     {
-        chunk.Initialize(state.coord, chunkSize, (localX, y, localZ) =>
-        {
-            // Conversion en coordonnées monde
-            int worldX = state.coord.x * chunkSize + localX;
-            int worldZ = state.coord.y * chunkSize + localZ;
+        var size = chunk.size;
+        var maxHeight = proceduralWorldManager.maxWorldHeight;
+        var totalSize = size * maxHeight * size;
 
-            // Utilisation du nouveau système de génération
-            return proceduralWorldManager.GetBlockAtPosition(worldX, y, worldZ);
-        });
+        NativeArray<BlockType> blockData = new NativeArray<BlockType>(totalSize, Allocator.TempJob);
+
+        TerrainGenJob job = new TerrainGenJob
+        {
+            chunkSize = size,
+            maxHeight = maxHeight,
+            worldSeed = proceduralWorldManager.worldSeed,
+            continentScale = proceduralWorldManager.continentScale,
+            elevationScale = proceduralWorldManager.elevationScale,
+            worldXOffset = chunk.coord.x * size,
+            worldZOffset = chunk.coord.y * size,
+            blockData = blockData
+        };
+
+        JobHandle handle = job.Schedule();
+        handle.Complete();
+
+        chunk.InitializeFromJob(blockData, maxHeight);
+        blockData.Dispose();
 
         state.currentStage = GenerationStage.Terrain;
         yield return null;
     }
+
 
     private IEnumerator GenerateCavesStage(Chunk chunk, ChunkGenerationState state)
     {
@@ -102,7 +179,8 @@ public class ChunkManager : MonoBehaviour
 
         if (biome.type == BiomeType.Forest)
         {
-            yield return StartCoroutine(GenerateTreesForChunk(state.coord, biome));
+            TreeGenerator generator = new TreeGenerator { chunkManager = this };
+            generator.GenerateDenseForest(state.coord, biome);
         }
 
         state.currentStage = GenerationStage.Trees;
@@ -284,9 +362,22 @@ public class ChunkManager : MonoBehaviour
     {
         isChunkGenerationRunning = true;
 
+        // Système de priorité basé sur la distance au joueur
         while (chunkGenerationQueue.Count > 0)
         {
             int generatedThisFrame = 0;
+            Vector2Int playerChunk = GetChunkCoordFromWorldPos(player.position);
+
+            // Trier la file d'attente par distance au joueur
+            List<Vector2Int> sortedQueue = new List<Vector2Int>(chunkGenerationQueue);
+            sortedQueue.Sort((a, b) =>
+                Mathf.RoundToInt(Vector2Int.Distance(playerChunk, a) * 1000) -
+                Mathf.RoundToInt(Vector2Int.Distance(playerChunk, b) * 1000));
+
+
+            chunkGenerationQueue.Clear();
+            foreach (var coord in sortedQueue)
+                chunkGenerationQueue.Enqueue(coord);
 
             while (generatedThisFrame < maxChunksPerFrame && chunkGenerationQueue.Count > 0)
             {
@@ -296,14 +387,17 @@ public class ChunkManager : MonoBehaviour
                     yield return StartCoroutine(CreateChunkStaged(coord));
                 }
                 generatedThisFrame++;
+
+                // Pause plus longue après chaque chunk pour éviter les saccades
+                yield return new WaitForEndOfFrame();
             }
 
-            // Attend la fin de la frame pour ne pas bloquer le jeu
             yield return null;
         }
 
         isChunkGenerationRunning = false;
     }
+
 
     void UpdateChunkVisibility()
     {

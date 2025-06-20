@@ -4,7 +4,7 @@
 public class PlayerData
 {
     public float x, y, z;
-    public string[] inventory; // Simplifié
+    public string[] inventory;
 
     public PlayerData(Vector3 pos, string[] inv)
     {

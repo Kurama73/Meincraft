@@ -1,14 +1,12 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 using UnityEngine;
-using System.Collections.Generic;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Runtime.Serialization;
 
 public static class ChunkSaveSystem
 {
     public static string CurrentWorld = "DefaultWorld";
-    private static string SavePath => Path.Combine(Application.persistentDataPath, "Saves", CurrentWorld, "Chunks");
+    public static string SavePath => Path.Combine(Application.persistentDataPath, "Saves", CurrentWorld, "Chunks");
 
     public static bool ChunkExists(Vector2Int coord)
     {
@@ -22,13 +20,13 @@ public static class ChunkSaveSystem
         {
             Directory.CreateDirectory(SavePath);
             string path = Path.Combine(SavePath, GetFileName(data.coord));
+            string tempPath = path + ".tmp";
 
-            IFormatter formatter = new BinaryFormatter();
-            using (Stream stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
-            {
-                SerializableChunkData serializableData = new SerializableChunkData(data);
-                formatter.Serialize(stream, serializableData);
-            }
+            string jsonData = JsonUtility.ToJson(new SerializableChunkData(data), true);
+            File.WriteAllText(tempPath, jsonData, Encoding.UTF8);
+
+            if (File.Exists(path)) File.Delete(path);
+            File.Move(tempPath, path);
         }
         catch (Exception e)
         {
@@ -39,29 +37,46 @@ public static class ChunkSaveSystem
     public static ChunkData LoadChunkData(Vector2Int coord)
     {
         string path = Path.Combine(SavePath, GetFileName(coord));
+        string backup = path + ".bak";
+
         if (!File.Exists(path))
         {
-            Debug.LogWarning($"Chunk file not found: {path}");
-            return null;
-        }
-        try
-        {
-            IFormatter formatter = new BinaryFormatter();
-            using (Stream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            if (File.Exists(backup))
+                path = backup;
+            else
             {
-                SerializableChunkData serializableData = (SerializableChunkData)formatter.Deserialize(stream);
-                return serializableData.ToChunkData();
+                Debug.LogWarning($"Chunk not found: {path}");
+                return null;
             }
         }
-        catch (System.Exception e)
+
+        try
         {
-            Debug.LogError($"Failed to load chunk data at {path}: {e}");
+            if (!File.Exists(backup)) File.Copy(path, backup);
+            string jsonData = File.ReadAllText(path, Encoding.UTF8);
+            SerializableChunkData sData = JsonUtility.FromJson<SerializableChunkData>(jsonData);
+            if (sData == null || sData.blocks == null) throw new Exception("Corrupted data");
+            return sData.ToChunkData();
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Failed to load chunk: {path} – {e.Message}");
+            if (File.Exists(backup))
+            {
+                try
+                {
+                    string jsonData = File.ReadAllText(backup, Encoding.UTF8);
+                    SerializableChunkData sData = JsonUtility.FromJson<SerializableChunkData>(jsonData);
+                    return sData.ToChunkData();
+                }
+                catch { Debug.LogError("Backup also corrupted"); }
+            }
             return null;
         }
     }
 
     private static string GetFileName(Vector2Int coord)
     {
-        return $"chunk_{coord.x}_{coord.y}.dat";
+        return $"chunk_{coord.x}_{coord.y}.json";
     }
 }

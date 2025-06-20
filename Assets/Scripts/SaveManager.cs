@@ -47,6 +47,14 @@ public class SaveManager : MonoBehaviour
         File.WriteAllText(path, JsonUtility.ToJson(data, true));
     }
 
+    public void SavePlayerPosition(Vector3 position)
+    {
+        string path = Path.Combine(SaveSystem.GetWorldPath(currentWorld), "player_position.json");
+        PlayerPositionData data = new PlayerPositionData { x = position.x, y = position.y, z = position.z };
+        File.WriteAllText(path, JsonUtility.ToJson(data, true));
+    }
+
+
     public Vector3 LoadPlayerPosition()
     {
         string path = Path.Combine(SaveSystem.GetWorldPath(currentWorld), "player_position.json");
